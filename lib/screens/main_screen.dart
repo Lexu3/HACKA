@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:nova/unis/info.dart';
-import 'package:nova/unis/example.dart';
 import 'package:flutter/services.dart';
 import 'university_screen.dart';
 
@@ -27,7 +27,7 @@ class _MainScreenState extends State<MainScreen> {
   bool dormYes = false;
   bool dormNo = false;
 
-  List<University> filteredUniversities = exampleUniversities;
+  List<Map<String, dynamic>> filteredUniversities = [];
 
   final cityController = TextEditingController();
   final educationController = TextEditingController();
@@ -48,29 +48,8 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void applyFilters() {
-    setState(() {
-      filteredUniversities = exampleUniversities.where((u) {
-        if (cityController.text.isNotEmpty && u.city != cityController.text) return false;
-        if (educationController.text.isNotEmpty &&
-            !u.directions.any((d) => d.level == educationController.text)) return false;
-        if (directionController.text.isNotEmpty &&
-            !u.directions.any((d) => d.name == directionController.text)) return false;
-        if (realityController.text.isNotEmpty &&
-            realityController.text.contains("Грант") &&
-            u.directions.every((d) => d.grantsCount == null || d.grantsCount == 0)) return false;
-
-        if (intlYes && !u.hasInternational) return false;
-        if (intlNo && u.hasInternational) return false;
-
-        if (militaryYes && !u.hasMilitaryDepartment) return false;
-        if (militaryNo && u.hasMilitaryDepartment) return false;
-
-        if (dormYes && !u.hasDormitory) return false;
-        if (dormNo && u.hasDormitory) return false;
-
-        return true;
-      }).toList();
-    });
+    // Filters are applied on snapshots when building the list.
+    setState(() {});
   }
 
   @override
@@ -182,59 +161,98 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildUniversityList(Map t) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: filteredUniversities.length,
-      itemBuilder: (_, i) {
-        final u = filteredUniversities[i];
-        return GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => UniversityScreen(name: u.name, city: u.city),
+    final coll = FirebaseFirestore.instance.collection('universities');
+    Query query = coll;
+
+    // Server-side filters (fast): city, education, direction, reality(hasGrant)
+    if (cityController.text.isNotEmpty) {
+      query = query.where('city', isEqualTo: cityController.text);
+    }
+    if (educationController.text.isNotEmpty) {
+      query = query.where('educationLevels', arrayContains: educationController.text);
+    }
+    if (directionController.text.isNotEmpty) {
+      query = query.where('directionNames', arrayContains: directionController.text);
+    }
+    if (realityController.text.isNotEmpty && realityController.text.contains('Грант')) {
+      query = query.where('hasGrant', isEqualTo: true);
+    }
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: query.snapshots().cast<QuerySnapshot<Map<String, dynamic>>>(),
+      builder: (context, snap) {
+        if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
+        if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+        final docs = snap.data!.docs;
+
+        // Remaining boolean filters applied client-side
+        final items = docs.where((d) {
+          final data = d.data();
+          if (intlYes && (data['hasInternational'] != true)) return false;
+          if (intlNo && (data['hasInternational'] == true)) return false;
+          if (militaryYes && (data['hasMilitaryDepartment'] != true)) return false;
+          if (militaryNo && (data['hasMilitaryDepartment'] == true)) return false;
+          if (dormYes && (data['hasDormitory'] != true)) return false;
+          if (dormNo && (data['hasDormitory'] == true)) return false;
+          return true;
+        }).toList();
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: items.length,
+          itemBuilder: (_, i) {
+            final doc = items[i];
+            final data = doc.data();
+            final name = data['name'] ?? doc.id;
+            final city = data['city'] ?? '';
+            final shortInfo = data['shortInfo'] ?? '';
+            final price = data['price'];
+
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => UniversityScreen(code: doc.id)),
+                );
+              },
+              child: Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 80,
+                        height: 80,
+                        color: Colors.blue.shade100,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            const SizedBox(height: 4),
+                            Text("$city • $shortInfo", style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                            const SizedBox(height: 4),
+                            Text("${t['price']}: ${price ?? '-'} KZT", style: const TextStyle(fontSize: 12)),
+                            const SizedBox(height: 2),
+                            Text(
+                              "${t['intl_full']}: ${data['hasInternational'] == true ? t['yes'] : t['no']} • "
+                              "${t['mil_full']}: ${data['hasMilitaryDepartment'] == true ? t['yes'] : t['no']} • "
+                              "${t['dorm_full']}: ${data['hasDormitory'] == true ? t['yes'] : t['no']}",
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             );
           },
-          child: Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  Container(
-                    width: 80,
-                    height: 80,
-                    color: Colors.blue.shade100,
-                    child: u.logo != null ? Image.network(u.logo!, fit: BoxFit.cover) : null,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(u.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                        const SizedBox(height: 4),
-                        Text("${u.city} • ${u.shortInfo ?? ''}", style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                        const SizedBox(height: 4),
-                        Text("${t["price"]}: ${u.price ?? '-'} KZT", style: const TextStyle(fontSize: 12)),
-                        const SizedBox(height: 4),
-                        Text("${t["stip"]}: ${u.directions.map((d) => d.grantsCount).where((c) => c != null).join(', ')}", style: const TextStyle(fontSize: 12)),
-                        const SizedBox(height: 2),
-                        Text(
-                          "${t["intl_full"]}: ${u.hasInternational ? t["yes"] : t["no"]} • "
-                          "${t["mil_full"]}: ${u.hasMilitaryDepartment ? t["yes"] : t["no"]} • "
-                          "${t["dorm_full"]}: ${u.hasDormitory ? t["yes"] : t["no"]}",
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
         );
       },
     );

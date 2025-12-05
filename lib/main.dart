@@ -4,6 +4,7 @@ import 'package:flutter_gemini/flutter_gemini.dart';
 import 'firebase_options.dart';
 
 import 'screens/home_page.dart';
+import 'unis/example.dart' show uploadUniversities, clearAndUploadUniversities;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,6 +12,15 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   Gemini.init(apiKey: 'AIzaSyDUrMWkhieZmyG1eSoU8VO4liMZQhtn1x0');
+
+  // Optional: run uploader automatically when starting the app with
+  // --dart-define=UPLOAD_ACTION=add  (or 'clear')
+  const uploadAction = String.fromEnvironment('UPLOAD_ACTION', defaultValue: '');
+  if (uploadAction == 'add') {
+    await uploadUniversities();
+  } else if (uploadAction == 'clear') {
+    await clearAndUploadUniversities();
+  }
   runApp(const MyApp());
 }
 

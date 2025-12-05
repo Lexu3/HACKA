@@ -8,6 +8,9 @@ class FavoritesService extends ValueNotifier<Set<String>> {
 
   factory FavoritesService() => _instance;
 
+  /// Convenience accessor for the singleton instance.
+  static FavoritesService get instance => _instance;
+
   bool isFavorite(String code) => value.contains(code);
 
   void toggle(String code) {

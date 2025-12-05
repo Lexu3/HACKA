@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:nova/screens/home_page.dart';
 import '../services/favorites_service.dart';
-import '../unis/example.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../unis/example.dart' show uploadUniversities, clearAndUploadUniversities;
 import '../unis/info.dart';
+import 'universities_firestore.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -19,7 +25,7 @@ class ProfileScreen extends StatelessWidget {
               const SizedBox(height: 24),
               _buildProfileInfo(),
               const SizedBox(height: 24),
-              _buildFavorites(),
+              _buildFavorites(context),
             ],
           ),
         ),
@@ -107,7 +113,7 @@ class ProfileScreen extends StatelessWidget {
   }
 
   // -------------------- ИЗБРАННЫЕ --------------------
-  Widget _buildFavorites() {
+  Widget _buildFavorites(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -124,7 +130,7 @@ class ProfileScreen extends StatelessWidget {
           
           // Список избранных — динамический
           ValueListenableBuilder<Set<String>>(
-            valueListenable: FavoritesService(),
+            valueListenable: FavoritesService.instance,
             builder: (context, favs, _) {
               final favCodes = favs.toList();
               if (favCodes.isEmpty) {
@@ -139,45 +145,102 @@ class ProfileScreen extends StatelessWidget {
                 itemCount: favCodes.length,
                 itemBuilder: (context, index) {
                   final code = favCodes[index];
-                  final uni = exampleUniversities.firstWhere((u) => u.code == code, orElse: () => University(name: code, code: code, city: ''));
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 60,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              color: Colors.blueAccent.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(Icons.school, color: Colors.blueAccent),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              uni.name,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
+                  return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                    future: FirebaseFirestore.instance.collection('universities').doc(code).get(),
+                    builder: (context, snap) {
+                      String name = code;
+                      if (snap.connectionState == ConnectionState.done && snap.hasData && snap.data!.exists) {
+                        final data = snap.data!.data();
+                        if (data != null && data['name'] is String) name = data['name'] as String;
+                      }
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 60,
+                                height: 60,
+                                decoration: BoxDecoration(
+                                  color: Colors.blueAccent.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(Icons.school, color: Colors.blueAccent),
                               ),
-                            ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  name,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.favorite, color: Colors.red),
+                                onPressed: () {
+                                  FavoritesService.instance.toggle(code);
+                                },
+                              ),
+                            ],
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.favorite, color: Colors.red),
-                            onPressed: () {
-                              FavoritesService().toggle(code);
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
+                        ),
+                      );
+                    },
                   );
                 },
               );
             },
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              ElevatedButton(
+                onPressed: () async {
+                  final messenger = ScaffoldMessenger.of(context);
+                  // Ask the user whether to clear existing docs first
+                  final choice = await showDialog<String>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Upload universities'),
+                      content: const Text('Do you want to clear existing universities first?'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(ctx, 'cancel'), child: const Text('Cancel')),
+                        TextButton(onPressed: () => Navigator.pop(ctx, 'no'), child: const Text('No (overwrite by code)')),
+                        ElevatedButton(onPressed: () => Navigator.pop(ctx, 'yes'), child: const Text('Yes (clear then upload)')),
+                      ],
+                    ),
+                  );
+
+                  if (choice == null || choice == 'cancel') return;
+
+                  try {
+                    if (choice == 'yes') {
+                      await clearAndUploadUniversities();
+                    } else {
+                      await uploadUniversities();
+                    }
+                    if (!mounted) return;
+                    messenger.showSnackBar(const SnackBar(content: Text('Upload complete')));
+                  } catch (e) {
+                    if (!mounted) return;
+                    messenger.showSnackBar(SnackBar(content: Text('Upload failed: $e')));
+                  }
+                },
+                child: const Text('Upload sample data'),
+              ),
+              const SizedBox(width: 12),
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const UniversitiesFirestore()),
+                  );
+                },
+                child: const Text('View live universities'),
+              ),
+            ],
           ),
         ],
       ),
