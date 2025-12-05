@@ -1,16 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'info.dart'; // твои модели University и Direction
-import 'firebase_options.dart';
-import 'package:firebase_core/firebase_core.dart';
-
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized(); // если Flutter
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  await uploadUniversities();
-}
 
 // расширения прямо здесь
 extension UniversityMap on University {
