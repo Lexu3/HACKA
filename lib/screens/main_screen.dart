@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'profile_screen.dart';
+import 'unis/info.dart';
+import 'unis/examples.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -14,9 +16,29 @@ class _MainScreenState extends State<MainScreen> {
   String? education;
   String? direction;
   String? reality;
-
   bool intlYes = false;
   bool intlNo = false;
+
+  List<University> filteredUniversities = exampleUniversities;
+
+  void applyFilters() {
+    setState(() {
+      filteredUniversities = exampleUniversities.where((u) {
+        if (region != null && u.city != region) return false;
+        if (city != null && u.city != city) return false;
+        if (education != null &&
+            !u.directions.any((d) => d.level == education)) return false;
+        if (direction != null &&
+            !u.directions.any((d) => d.name == direction)) return false;
+        if (reality != null &&
+            reality == "Грант" &&
+            u.directions.every((d) => d.grantsCount == null || d.grantsCount == 0)) return false;
+        if (intlYes && !u.hasInternational) return false;
+        if (intlNo && u.hasInternational) return false;
+        return true;
+      }).toList();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,23 +48,8 @@ class _MainScreenState extends State<MainScreen> {
         child: Column(
           children: [
             _buildHeader(),
-
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: _buildFilters(),
-                  ),
-
-                  Expanded(
-                    flex: 1,
-                    child: _buildChatBot(),
-                  ),
-                ],
-              ),
-            ),
+            _buildFiltersWidget(),
+            Expanded(child: _buildUniversityGrid()),
           ],
         ),
       ),
@@ -50,109 +57,63 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   // ---------------- HEADER ----------------
-
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: const BoxDecoration(
-        color: Colors.blueAccent,
-      ),
+      color: Colors.blueAccent,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            "Telary – слоган",
-            style: TextStyle(fontSize: 22, color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-
+          const Text("Telary", style: TextStyle(fontSize: 22, color: Colors.white, fontWeight: FontWeight.bold)),
           Row(
             children: [
-              const Text(
-                "KZ / RU",
-                style: TextStyle(color: Colors.white, fontSize: 16),
-              ),
+              const Text("KZ / RU", style: TextStyle(color: Colors.white, fontSize: 16)),
               const SizedBox(width: 20),
               IconButton(
                 icon: const Icon(Icons.person_outline, color: Colors.white),
                 onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                  );
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
                 },
               ),
             ],
-          )
+          ),
         ],
       ),
     );
   }
 
   // ---------------- FILTERS ----------------
-
-  Widget _buildFilters() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+  Widget _buildFiltersWidget() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: Colors.grey.shade50,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _drop("Область", region, ["Алматы", "Астана"], (v) => setState(() => region = v)),
-          const SizedBox(height: 16),
-
-          _drop("Город", city, ["Алматы", "Астана"], (v) => setState(() => city = v)),
-          const SizedBox(height: 16),
-
-          _drop("Уровень образования", education, ["Бакалавр", "Магистратура"], (v) => setState(() => education = v)),
-          const SizedBox(height: 16),
-
-          _drop("Направление", direction, ["IT", "Экономика", "Педагогика"], (v) => setState(() => direction = v)),
-          const SizedBox(height: 16),
-
-          _drop("Реалити", reality, ["Грант", "Платно"], (v) => setState(() => reality = v)),
-          const SizedBox(height: 22),
-
+          _drop("Область", region, regions, (v) => setState(() => region = v)),
+          const SizedBox(height: 8),
+          _drop("Город", city, cities, (v) => setState(() => city = v)),
+          const SizedBox(height: 8),
+          _drop("Уровень образования", education, educations, (v) => setState(() => education = v)),
+          const SizedBox(height: 8),
+          _drop("Направление", direction, directionsList, (v) => setState(() => direction = v)),
+          const SizedBox(height: 8),
+          _drop("Реалити", reality, realities, (v) => setState(() => reality = v)),
+          const SizedBox(height: 8),
           Row(
             children: [
               const Text("Междунар. сотрудничество:", style: TextStyle(fontSize: 16)),
-              const SizedBox(width: 16),
-
-              Checkbox(
-                value: intlYes,
-                onChanged: (value) {
-                  setState(() {
-                    intlYes = value!;
-                    if (value) intlNo = false;
-                  });
-                },
-              ),
+              Checkbox(value: intlYes, onChanged: (v) { setState(() { intlYes = v!; if (v) intlNo = false; }); }),
               const Text("Да"),
-
-              Checkbox(
-                value: intlNo,
-                onChanged: (value) {
-                  setState(() {
-                    intlNo = value!;
-                    if (value) intlYes = false;
-                  });
-                },
-              ),
+              Checkbox(value: intlNo, onChanged: (v) { setState(() { intlNo = v!; if (v) intlYes = false; }); }),
               const Text("Нет"),
             ],
           ),
-
-          const SizedBox(height: 30),
-
           Center(
             child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-                backgroundColor: Colors.blueAccent,
-              ),
-              onPressed: () {},
-              child: const Text(
-                "НАЙТИ",
-                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-              ),
+              style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16), backgroundColor: Colors.blueAccent),
+              onPressed: applyFilters,
+              child: const Text("НАЙТИ", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
             ),
           ),
         ],
@@ -160,14 +121,12 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  // Reusable dropdown widget
   Widget _drop(String title, String? value, List<String> items, Function(String?) onChanged) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title, style: const TextStyle(fontSize: 16)),
         const SizedBox(height: 6),
-
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
@@ -177,9 +136,7 @@ class _MainScreenState extends State<MainScreen> {
           child: DropdownButtonFormField<String>(
             value: value,
             decoration: const InputDecoration(border: InputBorder.none),
-            items: items
-                .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                .toList(),
+            items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
             onChanged: onChanged,
           ),
         ),
@@ -187,36 +144,49 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  // ---------------- CHAT BOT ----------------
-
-  Widget _buildChatBot() {
+  // ---------------- UNIVERSITY GRID ----------------
+  Widget _buildUniversityGrid() {
     return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text("ЧАТ БОТ", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-
-          Container(
-            padding: const EdgeInsets.all(16),
-            height: 300,
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(16),
+      padding: const EdgeInsets.all(16),
+      child: GridView.builder(
+        itemCount: filteredUniversities.length,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 0.85,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+        ),
+        itemBuilder: (context, index) {
+          final u = filteredUniversities[index];
+          return GestureDetector(
+            onTap: () {
+              // Переход на экран инфо о вузе
+            },
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: u.logo != null
+                        ? Image.network(u.logo!, fit: BoxFit.cover, width: double.infinity)
+                        : Container(color: Colors.blue.shade200, width: double.infinity),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(u.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text("${u.city} • ${u.shortInfo ?? ''}", style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                  const SizedBox(height: 4),
+                  Text("Цена: ${u.price ?? '-'} KZT", style: const TextStyle(fontSize: 12)),
+                ],
+              ),
             ),
-            child: const Text("чем вам помочь?"),
-          ),
-
-          const SizedBox(height: 20),
-
-          TextField(
-            decoration: InputDecoration(
-              hintText: "Введите сообщение...",
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          )
-        ],
+          );
+        },
       ),
     );
   }
