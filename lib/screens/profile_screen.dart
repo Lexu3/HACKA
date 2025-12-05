@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:nova/screens/home_page.dart';
-import 'main_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -9,119 +8,158 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-
       body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(context),
-
-            const SizedBox(height: 20),
-
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _buildUniversitiesGrid(),
-              ),
-            ),
-          ],
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              _buildHeader(context),
+              const SizedBox(height: 24),
+              _buildProfileInfo(),
+              const SizedBox(height: 24),
+              _buildFavorites(),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // --------------------------- HEADER -----------------------------
-
+  // ---------------------- HEADER ----------------------
   Widget _buildHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // ЛОГО (ИКОНКА) — увеличено до 250
-          SizedBox(
-            height: 250,
-            width: 250,
-            child: Image.asset(
-              "assets/icon.png",
-              fit: BoxFit.contain,
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: const Icon(Icons.arrow_back, size: 28),
+          ),
+          const Text(
+            "Профиль",
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
             ),
           ),
-
-          const Spacer(),
-
-          // СЛОВО TELARY — ССЫЛКА на main_screen.dart
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => HomePage()),
-              );
-            },
-            child: const Text(
-              "Telary",
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                color: Colors.blue,
-                decoration: TextDecoration.underline,
-              ),
-            ),
-          )
+          const SizedBox(width: 28),
         ],
       ),
     );
   }
 
-  // ----------------------- GRID из 3 в ряд ------------------------
-
-  Widget _buildUniversitiesGrid() {
-    return GridView.count(
-      shrinkWrap: true,
-      crossAxisCount: 3, // ← 3 в строке
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      childAspectRatio: 0.85,
-      physics: const NeverScrollableScrollPhysics(),
-      children: [
-        _universityCard("Harvard University", "assets/un1.png"),
-        _universityCard("Oxford University", "assets/un2.png"),
-        _universityCard("MIT", "assets/un3.png"),
-        _universityCard("Cambridge University", "assets/un4.png"),
-        _universityCard("Stanford University", "assets/un5.png"),
-        _universityCard("Columbia University", "assets/un6.png"),
-      ],
+  // -------------------- ПРОФИЛЬ INFO --------------------
+  Widget _buildProfileInfo() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: [
+          // Аватар
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.blueAccent.withOpacity(0.2),
+            ),
+            child: const Icon(Icons.person, size: 50, color: Colors.blueAccent),
+          ),
+          const SizedBox(height: 16),
+          
+          // Имя
+          const Text(
+            "Иван Петров",
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          
+          // Email
+          const Text(
+            "ivan.petrov@email.com",
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey,
+            ),
+          ),
+          const SizedBox(height: 24),
+          
+          // Кнопка редактирования
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blueAccent,
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+            ),
+            onPressed: () {},
+            child: const Text(
+              "Редактировать профиль",
+              style: TextStyle(color: Colors.white, fontSize: 16),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  // --------------------- КАРТОЧКА УНИВЕРА -------------------------
-
-  Widget _universityCard(String title, String imagePath) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFDFF3FF), // светло-голубой фон
-        borderRadius: BorderRadius.circular(16),
-      ),
-      padding: const EdgeInsets.all(10),
-
+  // -------------------- ИЗБРАННЫЕ --------------------
+  Widget _buildFavorites() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Картинка уменьшена в 2.5 раза (предположительно)
-          Expanded(
-            child: Image.asset(
-              imagePath,
-              fit: BoxFit.contain,
+          const Text(
+            "Избранные университеты",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
             ),
           ),
-
-          const SizedBox(height: 8),
-
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
+          const SizedBox(height: 12),
+          
+          // Список избранных
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: 3,
+            itemBuilder: (context, index) {
+              final names = ["КазНУ им. аль-Фараби", "ЕНУ им. Гумилева", "ИИТ"];
+              return Card(
+                margin: const EdgeInsets.only(bottom: 10),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: Colors.blueAccent.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.school, color: Colors.blueAccent),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          names[index],
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.favorite, color: Colors.red),
+                        onPressed: () {},
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
