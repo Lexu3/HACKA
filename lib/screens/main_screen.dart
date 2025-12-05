@@ -75,24 +75,28 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (texts.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    final t = texts[widget.lang]!;
-
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildFiltersWidget(t),
-            Expanded(child: _buildUniversityList(t)),
-          ],
-        ),
-      ),
+  // если тексты ещё не подгрузились, показываем прогресс
+  if (texts.isEmpty) {
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
     );
   }
+
+  final t = texts[widget.lang]!;
+
+  return Scaffold(
+    backgroundColor: Colors.white,
+    body: SafeArea(
+      child: Column(
+        children: [
+          _buildFiltersWidget(t),
+          Expanded(child: _buildUniversityList(t)),
+        ],
+      ),
+    ),
+  );
+}
+
 
   Widget _buildFiltersWidget(Map t) {
     return ExpansionTile(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nova/screens/home_page.dart';
 import 'main_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -53,7 +54,7 @@ class ProfileScreen extends StatelessWidget {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const MainScreen()),
+                MaterialPageRoute(builder: (_) => HomePage()),
               );
             },
             child: const Text(

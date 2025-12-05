@@ -105,7 +105,7 @@ class _HomePageState extends State<HomePage> {
 
                 // MainScreen справа 3/4 ширины
                 Expanded(
-                  child: MainScreen(lang: lang),
+                  child: MainScreen(lang: 'ru'),
                 ),
               ],
             ),
