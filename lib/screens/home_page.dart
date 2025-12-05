@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'chat_bot_page.dart';
+import 'package:nova/screens/chat_bot_page.dart';
 import 'main_screen.dart';
 import 'profile_screen.dart';
 
@@ -100,7 +100,7 @@ class _HomePageState extends State<HomePage> {
                 // Чат-бот слева 1/4 ширины
                 SizedBox(
                   width: MediaQuery.of(context).size.width * 0.25,
-                  child: ChatBotPage(lang: lang),
+                  child: ChatBotPage(),
                 ),
 
                 // MainScreen справа 3/4 ширины

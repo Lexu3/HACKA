@@ -4,7 +4,6 @@ import 'package:nova/unis/info.dart';
 import 'package:nova/unis/example.dart';
 import 'package:flutter/services.dart';
 import 'university_screen.dart';
-import '../services/favorites_service.dart';
 
 class MainScreen extends StatefulWidget {
   final String lang;
@@ -188,18 +187,18 @@ class _MainScreenState extends State<MainScreen> {
       itemCount: filteredUniversities.length,
       itemBuilder: (_, i) {
         final u = filteredUniversities[i];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => UniversityScreen(name: u.name, city: u.city),
-                ),
-              );
-            },
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => UniversityScreen(name: u.name, city: u.city),
+              ),
+            );
+          },
+          child: Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Row(
@@ -231,19 +230,6 @@ class _MainScreenState extends State<MainScreen> {
                         ),
                       ],
                     ),
-                  ),
-                  // favorite button
-                  ValueListenableBuilder<Set<String>>(
-                    valueListenable: FavoritesService(),
-                    builder: (context, favs, _) {
-                      final isFav = favs.contains(u.code);
-                      return IconButton(
-                        icon: Icon(isFav ? Icons.favorite : Icons.favorite_border, color: isFav ? Colors.red : Colors.grey),
-                        onPressed: () {
-                          FavoritesService().toggle(u.code);
-                        },
-                      );
-                    },
                   ),
                 ],
               ),

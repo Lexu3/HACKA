@@ -1,188 +1,98 @@
-import 'dart:convert';
+import 'package:dash_chat_2/dash_chat_2.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:flutter_gemini/flutter_gemini.dart';
 
 class ChatBotPage extends StatefulWidget {
-  final String lang;
-  const ChatBotPage({super.key, required this.lang});
+  const ChatBotPage({super.key});
 
   @override
-  State<ChatBotPage> createState() => _ChatBotPageState();
+  State<ChatBotPage> createState() => _HomePageState();
 }
 
-class _ChatBotPageState extends State<ChatBotPage> {
-  final TextEditingController _messageController = TextEditingController();
-  final List<Map<String, String>> _messages = [];
-  bool _isLoading = false;
+class _HomePageState extends State<ChatBotPage> {
+  final Gemini gemini = Gemini.instance;
+  List<ChatMessage> messages = [];
 
-  // Бесплатный вариант: Hugging Face Inference API (есть free tier).
-  // Получите ключ на https://huggingface.co/settings/tokens.
-  // Рекомендуемый способ — передавать ключ через --dart-define при запуске:
-  // flutter run --dart-define=HF_API_KEY=your_token_here
-  static final String HF_API_KEY = const String.fromEnvironment('HF_API_KEY', defaultValue: '');
-  static const String MODEL = 'gpt2'; // Можно заменить на другой публичный модельный endpoint
-
-  Future<String> _queryHuggingFace(String prompt) async {
-    final url = Uri.parse('https://api-inference.huggingface.co/models/$MODEL');
-    final body = jsonEncode({
-      'inputs': prompt,
-      'parameters': {'max_new_tokens': 150}
-    });
-
-    final resp = await http.post(url, headers: {
-      'Authorization': 'Bearer $HF_API_KEY',
-      'Content-Type': 'application/json'
-    }, body: body).timeout(const Duration(seconds: 30));
-
-    if (resp.statusCode == 200) {
-      try {
-        final decoded = jsonDecode(resp.body);
-        // Некоторые модели возвращают list with generated_text
-        if (decoded is List && decoded.isNotEmpty && decoded[0]['generated_text'] != null) {
-          return decoded[0]['generated_text'] as String;
-        }
-        // Some endpoints return a string or map
-        if (decoded is Map && decoded['generated_text'] != null) {
-          return decoded['generated_text'] as String;
-        }
-        // Fallback: return raw body
-        return resp.body;
-      } catch (e) {
-        return 'Ошибка разбора ответа: ${e.toString()}';
-      }
-    } else {
-      return 'Ошибка ${resp.statusCode}: ${resp.body}';
-    }
-  }
-
-  Future<void> _sendMessage() async {
-    if (_messageController.text.isEmpty) return;
-
-    if (HF_API_KEY.isEmpty) {
-      setState(() {
-        _messages.add({'role': 'bot', 'text': 'Hugging Face API key not set. Запустите с --dart-define=HF_API_KEY=...'});
-      });
-      return;
-    }
-
-    final userMessage = _messageController.text;
-    _messageController.clear();
-
-    setState(() {
-      _messages.add({'role': 'user', 'text': userMessage});
-      _isLoading = true;
-    });
-
-    try {
-      final prompt = '''Ты помощник для абитуриентов, ищущих информацию об университетах.
-Отвечай кратко и полезно на вопросы о:
-- Университетах Казахстана
-- Процессе поступления
-- Программах обучения
-- Стипендиях и грантах
-
-Вопрос: $userMessage''';
-
-      final answer = await _queryHuggingFace(prompt);
-
-      setState(() {
-        _messages.add({'role': 'bot', 'text': answer});
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _messages.add({'role': 'bot', 'text': 'Ошибка: ${e.toString()}'});
-        _isLoading = false;
-      });
-    }
-  }
+  ChatUser currentUser = ChatUser(id: "0", firstName: "Вы");
+  ChatUser geminiUser = ChatUser(
+      id: "1",
+      firstName: "Чат-бот",
+      );
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Чат-бот помощник'),
-        backgroundColor: Colors.blueAccent,
+        centerTitle: true,
+        title: const Text(
+          "Чат-бот",
+        ),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: _messages.isEmpty
-                ? Center(
-                    child: Text(
-                      'Привет! Задайте вопрос об университетах',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                    ),
-                  )
-                : ListView.builder(
-                    reverse: true,
-                    itemCount: _messages.length,
-                    itemBuilder: (context, index) {
-                      final message = _messages[_messages.length - 1 - index];
-                      final isUser = message['role'] == 'user';
-                      return Align(
-                        alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: isUser ? Colors.blueAccent : Colors.grey.shade300,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            message['text']!,
-                            style: TextStyle(
-                              color: isUser ? Colors.white : Colors.black,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: InputDecoration(
-                      hintText: 'Введите вопрос...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                FloatingActionButton(
-                  onPressed: _isLoading ? null : _sendMessage,
-                  backgroundColor: Colors.blueAccent,
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : const Icon(Icons.send),
-                ),
-              ],
-            ),
-          ),
-        ],
+      body: DashChat(
+        currentUser: currentUser,
+        onSend: _sendMessage,
+        messages: messages,
       ),
     );
   }
 
-  @override
-  void dispose() {
-    _messageController.dispose();
-    super.dispose();
+  void _sendMessage(ChatMessage chatMessage) {
+    setState(() {
+      messages = [chatMessage, ...messages];
+    });
+    try {
+      String question = chatMessage.text;
+      ChatMessage responseMessage = ChatMessage(
+        user: geminiUser,
+        createdAt: DateTime.now(),
+        text: "", // Изначально пустой текст
+      );
+      setState(() {
+        messages = [responseMessage, ...messages]; // Добавляем пустое сообщение от Gemini
+      });
+
+      gemini.promptStream(
+        parts: [Part.text(question)],
+      ).listen(
+        (response) {
+          final content = response?.output;
+          if (content != null) {
+            setState(() {
+              responseMessage.text += content; // <---- Вот это изменение
+              final index = messages.indexWhere((msg) =>
+                  msg.user == geminiUser &&
+                  msg.createdAt == responseMessage.createdAt);
+              if (index != -1) {
+                messages[index] = responseMessage;
+              }
+            });
+          }
+        },
+        onDone: () {
+          print("Стрим от Gemini завершен");
+        },
+        onError: (error) {
+          print("Ошибка при получении стрима от Gemini: $error");
+          ChatMessage errorMessage = ChatMessage(
+            user: geminiUser,
+            createdAt: DateTime.now(),
+            text: "Произошла ошибка при получении ответа.",
+          );
+          setState(() {
+            messages = [errorMessage, ...messages];
+          });
+        },
+      );
+    } catch (e) {
+      print("Ошибка при отправке запроса к Gemini: $e");
+      ChatMessage errorMessage = ChatMessage(
+        user: geminiUser,
+        createdAt: DateTime.now(),
+        text: "Произошла ошибка.",
+      );
+      setState(() {
+        messages = [errorMessage, ...messages];
+      });
+    }
   }
 }
