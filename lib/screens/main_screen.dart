@@ -7,7 +7,7 @@ import 'university_screen.dart';
 
 class MainScreen extends StatefulWidget {
   final String lang;
-  const MainScreen({super.key, required this.lang});
+  const MainScreen({super.key, this.lang = 'ru'});
 
   @override
   State<MainScreen> createState() => _MainScreenState();

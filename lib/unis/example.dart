@@ -1,5 +1,46 @@
-import 'info.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'info.dart'; // твои модели University и Direction
+import 'firebase_options.dart';
+import 'package:firebase_core/firebase_core.dart';
 
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized(); // если Flutter
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  await uploadUniversities();
+}
+
+// расширения прямо здесь
+extension UniversityMap on University {
+  Map<String, dynamic> toMap() {
+    return {
+      "name": name,
+      "code": code,
+      "city": city,
+      "logo": logo,
+      "hasInternational": hasInternational,
+      "shortInfo": shortInfo,
+      "hasDormitory": hasDormitory,
+      "hasMilitaryDepartment": hasMilitaryDepartment,
+      "price": price,
+      "directions": directions.map((d) => d.toMap()).toList(),
+    };
+  }
+}
+
+extension DirectionMap on Direction {
+  Map<String, dynamic> toMap() {
+    return {
+      "name": name,
+      "level": level,
+      "grantsCount": grantsCount,
+    };
+  }
+}
+
+// твой список университетов
 final List<University> exampleUniversities = [
   University(
     name: "Satbayev University",
@@ -41,3 +82,18 @@ final List<University> exampleUniversities = [
     price: 850000,
   ),
 ];
+
+// Firestore
+final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+Future<void> uploadUniversities() async {
+  for (var uni in exampleUniversities) {
+    await _firestore.collection('universities').doc(uni.code).set(uni.toMap());
+    print("Added ${uni.name}");
+  }
+  print("Все университеты загружены!");
+}
+
+void main() async {
+  await uploadUniversities();
+}
