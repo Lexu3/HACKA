@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/favorites_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../unis/example.dart' show uploadUniversities, clearAndUploadUniversities;
-import '../unis/info.dart';
 import 'universities_firestore.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -197,41 +195,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 16),
           Row(
             children: [
-              ElevatedButton(
-                onPressed: () async {
-                  final messenger = ScaffoldMessenger.of(context);
-                  // Ask the user whether to clear existing docs first
-                  final choice = await showDialog<String>(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('Upload universities'),
-                      content: const Text('Do you want to clear existing universities first?'),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.pop(ctx, 'cancel'), child: const Text('Cancel')),
-                        TextButton(onPressed: () => Navigator.pop(ctx, 'no'), child: const Text('No (overwrite by code)')),
-                        ElevatedButton(onPressed: () => Navigator.pop(ctx, 'yes'), child: const Text('Yes (clear then upload)')),
-                      ],
-                    ),
-                  );
-
-                  if (choice == null || choice == 'cancel') return;
-
-                  try {
-                    if (choice == 'yes') {
-                      await clearAndUploadUniversities();
-                    } else {
-                      await uploadUniversities();
-                    }
-                    if (!mounted) return;
-                    messenger.showSnackBar(const SnackBar(content: Text('Upload complete')));
-                  } catch (e) {
-                    if (!mounted) return;
-                    messenger.showSnackBar(SnackBar(content: Text('Upload failed: $e')));
-                  }
-                },
-                child: const Text('Upload sample data'),
-              ),
-              const SizedBox(width: 12),
               OutlinedButton(
                 onPressed: () {
                   Navigator.of(context).push(
