@@ -16,8 +16,10 @@ class _ChatBotPageState extends State<ChatBotPage> {
   bool _isLoading = false;
 
   // Бесплатный вариант: Hugging Face Inference API (есть free tier).
-  // Получите ключ на https://huggingface.co/settings/tokens и вставьте сюда.
-  static const String HF_API_KEY = 'HF_API_KEY_HERE';
+  // Получите ключ на https://huggingface.co/settings/tokens.
+  // Рекомендуемый способ — передавать ключ через --dart-define при запуске:
+  // flutter run --dart-define=HF_API_KEY=your_token_here
+  static final String HF_API_KEY = const String.fromEnvironment('HF_API_KEY', defaultValue: '');
   static const String MODEL = 'gpt2'; // Можно заменить на другой публичный модельный endpoint
 
   Future<String> _queryHuggingFace(String prompt) async {
@@ -55,6 +57,13 @@ class _ChatBotPageState extends State<ChatBotPage> {
 
   Future<void> _sendMessage() async {
     if (_messageController.text.isEmpty) return;
+
+    if (HF_API_KEY.isEmpty) {
+      setState(() {
+        _messages.add({'role': 'bot', 'text': 'Hugging Face API key not set. Запустите с --dart-define=HF_API_KEY=...'});
+      });
+      return;
+    }
 
     final userMessage = _messageController.text;
     _messageController.clear();

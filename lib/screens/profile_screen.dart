@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:nova/screens/home_page.dart';
+import '../services/favorites_service.dart';
+import '../unis/example.dart';
+import '../unis/info.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -119,45 +122,60 @@ class ProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           
-          // Список избранных
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: 3,
-            itemBuilder: (context, index) {
-              final names = ["КазНУ им. аль-Фараби", "ЕНУ им. Гумилева", "ИИТ"];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 10),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: Colors.blueAccent.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.school, color: Colors.blueAccent),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          names[index],
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+          // Список избранных — динамический
+          ValueListenableBuilder<Set<String>>(
+            valueListenable: FavoritesService(),
+            builder: (context, favs, _) {
+              final favCodes = favs.toList();
+              if (favCodes.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8.0),
+                  child: Text('Нет избранных университетов'),
+                );
+              }
+              return ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: favCodes.length,
+                itemBuilder: (context, index) {
+                  final code = favCodes[index];
+                  final uni = exampleUniversities.firstWhere((u) => u.code == code, orElse: () => University(name: code, code: code, city: ''));
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              color: Colors.blueAccent.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.school, color: Colors.blueAccent),
                           ),
-                        ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              uni.name,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.favorite, color: Colors.red),
+                            onPressed: () {
+                              FavoritesService().toggle(code);
+                            },
+                          ),
+                        ],
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.favorite, color: Colors.red),
-                        onPressed: () {},
-                      ),
-                    ],
-                  ),
-                ),
+                    ),
+                  );
+                },
               );
             },
           ),

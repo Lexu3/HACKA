@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'info.dart'; // твои модели University и Direction
+import 'info.dart'; 
 
 // расширения прямо здесь
 extension UniversityMap on University {
