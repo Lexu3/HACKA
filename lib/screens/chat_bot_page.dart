@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/favorites_service.dart';
+import '../widgets/app_scaffold.dart';
 
 class ChatBotPage extends StatefulWidget {
   const ChatBotPage({super.key});
@@ -86,14 +87,16 @@ class _HomePageState extends State<ChatBotPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppScaffold(
       appBar: AppBar(
         centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         title: const Text(
           "Чат-бот",
         ),
       ),
-      body: KeyboardListener(
+      child: KeyboardListener(
         focusNode: FocusNode(),
         autofocus: false,
         onKeyEvent: (event) {
@@ -363,45 +366,7 @@ class _HomePageState extends State<ChatBotPage> {
     }
   }
 
-  Future<void> _testGeminiApi() async {
-    // Simple short prompt to test connectivity and surface detailed errors
-    try {
-      final buffer = StringBuffer();
-      final completer = Completer<void>();
-      final sub = gemini.promptStream(parts: [Part.text('Пожалуйста, одним словом: OK')]).listen(
-        (response) {
-          if (response == null) return;
-          if (response.output != null) buffer.write(response.output);
-        },
-        onDone: () => completer.complete(),
-        onError: (err) => completer.completeError(err),
-      );
-      // Wait up to 15s for a reply
-      await completer.future.timeout(const Duration(seconds: 15));
-      await sub.cancel();
-      final result = buffer.toString();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Gemini ответ: ${result.isEmpty ? '<пусто>' : result}'),
-        duration: const Duration(seconds: 4),
-      ));
-    } catch (err) {
-      String errText = err.toString();
-      try {
-        final resp = (err as dynamic).response;
-        if (resp != null) {
-          final status = resp.statusCode ?? (resp['statusCode'] ?? null);
-          final body = resp.data ?? resp.body ?? resp.toString();
-          errText += '\nStatus: ${status ?? '<unknown>'}\nBody: ${body ?? '<no-body>'}';
-        }
-      } catch (_) {}
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Ошибка Gemini: $errText', maxLines: 8, overflow: TextOverflow.ellipsis),
-        duration: const Duration(seconds: 8),
-      ));
-    }
-  }
+  
 
   Future<void> _sendMessageViaProxy(String question, ChatMessage responseMessage) async {
     try {

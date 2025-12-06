@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold.dart';
+import '../theme.dart';
 import 'package:flutter/services.dart';
 // (inline chat removed) Floating chat panel is used instead.
 import 'main_screen.dart';
@@ -45,64 +47,27 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     if (texts.isEmpty) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return const AppScaffold(
+        child: Center(child: CircularProgressIndicator()),
       );
     }
 
     final t = texts[lang]!;
 
-    return Scaffold(
-      body: Column(
+    return AppScaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text(t['header'], style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.greenDark)),
+        actions: [
+          TextButton(onPressed: toggleLang, child: Text(t['lang'], style: const TextStyle(color: Color.fromARGB(255, 46, 95, 51)))),
+          IconButton(icon: const Icon(Icons.person_outline, color: Color.fromARGB(255, 24, 48, 33)), onPressed: openProfile),
+        ],
+      ),
+      child: Column(
         children: [
-          // верхняя навигационная панель
-          Container(
-            height: 60,
-            width: double.infinity,
-            color: Colors.blueAccent,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  t["header"],
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold),
-                ),
-                Row(
-                  children: [
-                    TextButton(
-                      onPressed: toggleLang,
-                      child: Text(
-                        t["lang"],
-                        style:
-                            const TextStyle(color: Colors.white, fontSize: 16),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon:
-                          const Icon(Icons.person_outline, color: Colors.white),
-                      onPressed: openProfile,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // основной контент
           Expanded(
-            child: Row(
-              children: [
-                // MainScreen occupies the full area now; floating chat button provides chat access.
-                Expanded(
-                  child: MainScreen(lang: lang),
-                ),
-              ],
-            ),
+            child: MainScreen(lang: lang),
           ),
         ],
       ),

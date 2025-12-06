@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../widgets/app_scaffold.dart';
+import '../theme.dart';
 import '../services/favorites_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/floating_chat.dart';
@@ -14,25 +16,22 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            SingleChildScrollView(
-              child: Column(
-                children: [
-                  _buildHeader(context),
-                  const SizedBox(height: 24),
-                  _buildProfileInfo(),
-                  const SizedBox(height: 24),
-                  _buildFavorites(context),
-                ],
-              ),
+    return AppScaffold(
+      child: Stack(
+        children: [
+          SingleChildScrollView(
+            child: Column(
+              children: [
+                _buildHeader(context),
+                const SizedBox(height: 24),
+                _buildProfileInfo(),
+                const SizedBox(height: 24),
+                _buildFavorites(context),
+              ],
             ),
-            const FloatingChatButton(),
-          ],
-        ),
+          ),
+          const FloatingChatButton(),
+        ],
       ),
     );
   }
@@ -90,13 +89,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 8),
           
           // Email
-          const Text(
-            "ivan.petrov@email.com",
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey,
+            Text(
+              "ivan.petrov@email.com",
+              style: const TextStyle(
+                fontSize: 14,
+                color: Color(0xFF0F6B4A),
+              ),
             ),
-          ),
           const SizedBox(height: 24),
           
           // Кнопка редактирования
