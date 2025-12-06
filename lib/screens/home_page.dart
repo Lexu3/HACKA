@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:nova/screens/chat_bot_page.dart';
+// Chat is available as a floating panel; remove inline chat from home layout.
 import 'main_screen.dart';
 import 'profile_screen.dart';
 
@@ -97,13 +97,7 @@ class _HomePageState extends State<HomePage> {
           Expanded(
             child: Row(
               children: [
-                // Чат-бот слева 1/4 ширины
-                SizedBox(
-                  width: MediaQuery.of(context).size.width * 0.25,
-                  child: ChatBotPage(),
-                ),
-
-                // MainScreen справа 3/4 ширины
+                // MainScreen occupies the full area now; floating chat button provides chat access.
                 Expanded(
                   child: MainScreen(lang: lang),
                 ),

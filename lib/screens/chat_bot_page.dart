@@ -2,6 +2,8 @@ import 'package:dash_chat_2/dash_chat_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_gemini/flutter_gemini.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/favorites_service.dart';
 
 class ChatBotPage extends StatefulWidget {
   const ChatBotPage({super.key});
@@ -22,6 +24,57 @@ class _HomePageState extends State<ChatBotPage> {
       );
   final TextEditingController _inputController = TextEditingController();
   final FocusNode _inputFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFavoritesData();
+    FavoritesService.instance.addListener(() {
+      _loadFavoritesData();
+    });
+  }
+
+  // Favorites data for suggestions
+  List<String> favCodes = [];
+  Map<String, String> favNames = {}; // code -> name
+  List<MapEntry<String, String>> favDirections = []; // (uniCode, dirName)
+
+  Future<void> _loadFavoritesData() async {
+    final codes = FavoritesService.instance.favoritesList;
+    final dirKeys = FavoritesService.instance.favoriteDirectionsList;
+    final dirPairs = dirKeys.map((k) {
+      final parts = k.split('|');
+      final uni = parts.isNotEmpty ? parts.first : '';
+      final dir = parts.length > 1 ? parts.sublist(1).join('|') : '';
+      return MapEntry(uni, dir);
+    }).toList();
+
+    // Collect codes to fetch names for
+    final needed = <String>{...codes};
+    needed.addAll(dirPairs.map((e) => e.key));
+
+    final Map<String, String> names = {};
+    if (needed.isNotEmpty) {
+      try {
+        final docs = await Future.wait(needed.map((c) => FirebaseFirestore.instance.collection('universities').doc(c).get()));
+        for (final d in docs) {
+          if (d.exists) {
+            final data = d.data();
+            names[d.id] = (data != null && data['name'] is String) ? data['name'] as String : d.id;
+          }
+        }
+      } catch (_) {
+        // ignore fetch errors for suggestions
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      favCodes = codes;
+      favNames = names;
+      favDirections = dirPairs;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +101,12 @@ class _HomePageState extends State<ChatBotPage> {
             }
           }
         },
-        child: DashChat(
+        child: Column(
+          children: [
+            // Suggestion card when chat is empty
+            if (messages.isEmpty) _buildSuggestionsCard(context),
+            Expanded(
+              child: DashChat(
           currentUser: currentUser,
           onSend: _sendMessage,
           messages: messages,
@@ -107,9 +165,94 @@ class _HomePageState extends State<ChatBotPage> {
               );
             },
           ),
+              ),
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  Widget _buildSuggestionsCard(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Хотите сравнить вузы или направления?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  ElevatedButton(
+                    onPressed: favCodes.length >= 2 ? () => _compareUniversities() : null,
+                    child: const Text('Сравнить избранные вузы'),
+                  ),
+                  ElevatedButton(
+                    onPressed: favDirections.length >= 2 ? () => _compareDirections() : null,
+                    child: const Text('Сравнить избранные направления'),
+                  ),
+                  // show chips for each favorite university
+                  ...favCodes.map((c) {
+                    final name = favNames[c] ?? c;
+                    return ActionChip(label: Text(name), onPressed: () => _sendQuickCompare([c]));
+                  }),
+                  // chips for directions
+                  ...favDirections.map((e) {
+                    final uniName = favNames[e.key] ?? e.key;
+                    final label = '$uniName — ${e.value}';
+                    return ActionChip(label: Text(label), onPressed: () => _sendQuickCompareDirection(e));
+                  }),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _sendQuickCompare(List<String> codes) {
+    // Build a simple compare prompt for selected codes
+    final names = codes.map((c) => favNames[c] ?? c).toList();
+    final prompt = 'Сравни, пожалуйста, следующие университеты: ${names.join(', ')}. ' 
+        'Кратко опиши сильные стороны, ориентировочную стоимость обучения, наличие общежития и грантов, и какие направления стоит рассмотреть.';
+    final chatMessage = ChatMessage(user: currentUser, text: prompt, createdAt: DateTime.now());
+    _inputController.clear();
+    _sendMessage(chatMessage);
+  }
+
+  void _sendQuickCompareDirection(MapEntry<String, String> pair) {
+    final uni = favNames[pair.key] ?? pair.key;
+    final dir = pair.value;
+    final prompt = 'Сравни направление "$dir" в университете $uni: какие сильные стороны, перспективы трудоустройства и каков ожидаемый проходной балл.';
+    final chatMessage = ChatMessage(user: currentUser, text: prompt, createdAt: DateTime.now());
+    _inputController.clear();
+    _sendMessage(chatMessage);
+  }
+
+  void _compareUniversities() {
+    if (favCodes.length < 2) return;
+    final names = favCodes.map((c) => favNames[c] ?? c).toList();
+    final prompt = 'Сравни, пожалуйста, следующие университеты: ${names.join(', ')}. ' 
+        'Сравнение по стоимости обучения, условиям проживания, наличию грантов, и лучшим направлениям.';
+    final chatMessage = ChatMessage(user: currentUser, text: prompt, createdAt: DateTime.now());
+    _inputController.clear();
+    _sendMessage(chatMessage);
+  }
+
+  void _compareDirections() {
+    if (favDirections.length < 2) return;
+    final samples = favDirections.take(4).map((e) => '${favNames[e.key] ?? e.key}: ${e.value}').toList();
+    final prompt = 'Сравни, пожалуйста, следующие направления: ${samples.join('; ')}. ' 
+        'Укажи различия в требованиях, перспективах и примерные проходные баллы.';
+    final chatMessage = ChatMessage(user: currentUser, text: prompt, createdAt: DateTime.now());
+    _inputController.clear();
+    _sendMessage(chatMessage);
   }
 
   void _sendMessage(ChatMessage chatMessage) {
