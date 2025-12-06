@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../services/favorites_service.dart';
 
 class UniversityScreen extends StatelessWidget {
   final String code;
@@ -43,12 +44,40 @@ class UniversityScreen extends StatelessWidget {
                         itemCount: dirs.length,
                         itemBuilder: (context, i) {
                           final d = dirs[i].data();
+                          final pass = d['passScore'];
                           return Card(
                             margin: const EdgeInsets.only(bottom: 8),
                             child: ListTile(
                               title: Text(d['name'] ?? ''),
                               subtitle: Text('${d['level'] ?? ''} • ${d['entSubjects']?.join(', ') ?? ''}'),
-                              trailing: Text(d['passScore']?.toString() ?? ''),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      if (pass != null)
+                                        Text('баллы ЕНТ: $pass', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                    ],
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ValueListenableBuilder<Set<String>>(
+                                    valueListenable: FavoritesService.instance.directionFavorites,
+                                    builder: (context, dirFavs, _) {
+                                      final key = '$code|${d['name'] ?? ''}';
+                                      final isFav = dirFavs.contains(key);
+                                      return IconButton(
+                                        icon: Icon(isFav ? Icons.favorite : Icons.favorite_border, color: isFav ? Colors.red : null),
+                                        onPressed: () {
+                                          FavoritesService.instance.toggleDirection(code, d['name'] ?? '');
+                                        },
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
                             ),
                           );
                         },

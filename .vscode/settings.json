@@ -1,4 +1,4 @@
 {
   // Увеличиваем глубину поиска, чтобы расширение Dart нашло `pubspec.yaml` в рабочей области
-  "dart.projectSearchDepth": 4
+  "dart.projectSearchDepth": 8
 }
