@@ -38,11 +38,11 @@ class UniversitiesFirestore extends StatelessWidget {
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: ListTile(
-                  leading: Container(
+                    leading: Container(
                     width: 52,
                     height: 52,
                     decoration: BoxDecoration(
-                      color: Colors.blueAccent.withOpacity(0.15),
+                      color: Colors.blueAccent.withAlpha((0.15 * 255).round()),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(Icons.school, color: Colors.blueAccent),

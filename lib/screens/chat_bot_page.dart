@@ -2,6 +2,9 @@ import 'package:dash_chat_2/dash_chat_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_gemini/flutter_gemini.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/favorites_service.dart';
 
@@ -14,6 +17,11 @@ class ChatBotPage extends StatefulWidget {
 
 class _HomePageState extends State<ChatBotPage> {
   final Gemini gemini = Gemini.instance;
+  // Optional proxy URL. If provided via --dart-define, the client will POST prompts to
+  // this server which should forward requests to Gemini/Vertex AI using a server-side key
+  // and optional moderation/filtering. Example usage:
+  // flutter run --dart-define=GEMINI_PROXY_URL=http://10.0.2.2:3000
+  static const String _geminiProxyUrl = String.fromEnvironment('GEMINI_PROXY_URL', defaultValue: '');
   List<ChatMessage> messages = [];
   List<ChatMessage> pendingMessages = [];
 
@@ -85,12 +93,12 @@ class _HomePageState extends State<ChatBotPage> {
           "Чат-бот",
         ),
       ),
-      body: RawKeyboardListener(
+      body: KeyboardListener(
         focusNode: FocusNode(),
         autofocus: false,
-        onKey: (event) {
-          if (event is RawKeyDownEvent && event.logicalKey == LogicalKeyboardKey.space) {
-            // send only when input is focused and has content
+        onKeyEvent: (event) {
+          if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.space) {
+            // focused and has content
             if (_inputFocus.hasFocus) {
               final text = _inputController.text;
               if (text.trim().isNotEmpty) {
@@ -103,7 +111,7 @@ class _HomePageState extends State<ChatBotPage> {
         },
         child: Column(
           children: [
-            // Suggestion card when chat is empty
+            // Suggestion card
             if (messages.isEmpty) _buildSuggestionsCard(context),
             Expanded(
               child: DashChat(
@@ -116,7 +124,7 @@ class _HomePageState extends State<ChatBotPage> {
             sendOnEnter: false,
           ),
           messageOptions: MessageOptions(
-            // Provide a custom row builder that wraps the message body in
+            // Provide a custom row builder
             // Expanded so long content doesn't overflow the Row.
             messageRowBuilder: (message, previousMessage, nextMessage, isAfterDateSeparator, isBeforeDateSeparator) {
               final isOwn = message.user.id == currentUser.id;
@@ -255,7 +263,7 @@ class _HomePageState extends State<ChatBotPage> {
     _sendMessage(chatMessage);
   }
 
-  void _sendMessage(ChatMessage chatMessage) {
+  Future<void> _sendMessage(ChatMessage chatMessage) async {
     setState(() {
       messages = [chatMessage, ...messages];
     });
@@ -269,7 +277,12 @@ class _HomePageState extends State<ChatBotPage> {
       setState(() {
         messages = [responseMessage, ...messages]; // Добавляем пустое сообщение от Gemini
       });
+      if (_geminiProxyUrl.isNotEmpty) {
+        await _sendMessageViaProxy(question, responseMessage);
+        return;
+      }
 
+      // Default: use flutter_gemini streaming client
       gemini.promptStream(
         parts: [Part.text(question)],
       ).listen(
@@ -293,7 +306,17 @@ class _HomePageState extends State<ChatBotPage> {
         },
         onError: (error) {
           debugPrint("Ошибка при получении стрима от Gemini: $error");
-          final errText = error.toString();
+          String errText = error.toString();
+          try {
+            final resp = (error as dynamic).response;
+            if (resp != null) {
+              // Response may have statusCode/body depending on the client lib
+              final status = resp.statusCode ?? (resp['statusCode'] ?? null);
+              final body = resp.data ?? resp.body ?? resp.toString();
+              errText += '\nStatus: ${status ?? '<unknown>'}\nBody: ${body ?? '<no-body>'}';
+            }
+          } catch (_) {}
+
           ChatMessage errorMessage = ChatMessage(
             user: geminiUser,
             createdAt: DateTime.now(),
@@ -302,18 +325,117 @@ class _HomePageState extends State<ChatBotPage> {
           setState(() {
             messages = [errorMessage, ...messages];
           });
+          if (mounted) {
+            final snack = SnackBar(
+              content: Text(errText, maxLines: 8, overflow: TextOverflow.ellipsis),
+              duration: const Duration(seconds: 6),
+            );
+            ScaffoldMessenger.of(context).showSnackBar(snack);
+          }
         },
       );
     } catch (e) {
       debugPrint("Ошибка при отправке запроса к Gemini: $e");
+      String errText = e.toString();
+      try {
+        final resp = (e as dynamic).response;
+        if (resp != null) {
+          final status = resp.statusCode ?? (resp['statusCode'] ?? null);
+          final body = resp.data ?? resp.body ?? resp.toString();
+          errText += '\nStatus: ${status ?? '<unknown>'}\nBody: ${body ?? '<no-body>'}';
+        }
+      } catch (_) {}
+
       ChatMessage errorMessage = ChatMessage(
         user: geminiUser,
         createdAt: DateTime.now(),
-        text: "Произошла ошибка.",
+        text: 'Произошла ошибка при отправке запроса: $errText',
       );
       setState(() {
         messages = [errorMessage, ...messages];
       });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(errText, maxLines: 8, overflow: TextOverflow.ellipsis),
+          duration: const Duration(seconds: 6),
+        ));
+      }
+    }
+  }
+
+  Future<void> _testGeminiApi() async {
+    // Simple short prompt to test connectivity and surface detailed errors
+    try {
+      final buffer = StringBuffer();
+      final completer = Completer<void>();
+      final sub = gemini.promptStream(parts: [Part.text('Пожалуйста, одним словом: OK')]).listen(
+        (response) {
+          if (response == null) return;
+          if (response.output != null) buffer.write(response.output);
+        },
+        onDone: () => completer.complete(),
+        onError: (err) => completer.completeError(err),
+      );
+      // Wait up to 15s for a reply
+      await completer.future.timeout(const Duration(seconds: 15));
+      await sub.cancel();
+      final result = buffer.toString();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Gemini ответ: ${result.isEmpty ? '<пусто>' : result}'),
+        duration: const Duration(seconds: 4),
+      ));
+    } catch (err) {
+      String errText = err.toString();
+      try {
+        final resp = (err as dynamic).response;
+        if (resp != null) {
+          final status = resp.statusCode ?? (resp['statusCode'] ?? null);
+          final body = resp.data ?? resp.body ?? resp.toString();
+          errText += '\nStatus: ${status ?? '<unknown>'}\nBody: ${body ?? '<no-body>'}';
+        }
+      } catch (_) {}
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Ошибка Gemini: $errText', maxLines: 8, overflow: TextOverflow.ellipsis),
+        duration: const Duration(seconds: 8),
+      ));
+    }
+  }
+
+  Future<void> _sendMessageViaProxy(String question, ChatMessage responseMessage) async {
+    try {
+      final uri = Uri.parse('$_geminiProxyUrl/v1/gemini');
+      final body = jsonEncode({'prompt': question});
+      final resp = await http.post(uri, headers: {'Content-Type': 'application/json'}, body: body).timeout(const Duration(seconds: 30));
+      if (resp.statusCode == 200) {
+        String text = resp.body;
+        // Try to parse JSON { text: '...' }
+        try {
+          final parsed = jsonDecode(resp.body);
+          if (parsed is Map && parsed['text'] is String) text = parsed['text'];
+        } catch (_) {}
+
+        final safe = _sanitizeForWrapping(text, maxRun: 24);
+        setState(() {
+          responseMessage.text = safe;
+          messages = [responseMessage, ...messages.where((m) => m != responseMessage)];
+        });
+      } else {
+        final errText = 'Proxy error ${resp.statusCode}: ${resp.body}';
+        final errorMessage = ChatMessage(user: geminiUser, createdAt: DateTime.now(), text: 'Ошибка: $errText');
+        setState(() {
+          messages = [errorMessage, ...messages];
+        });
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errText)));
+      }
+    } catch (e) {
+      final errText = e.toString();
+      final errorMessage = ChatMessage(user: geminiUser, createdAt: DateTime.now(), text: 'Ошибка при прокси: $errText');
+      setState(() {
+        messages = [errorMessage, ...messages];
+      });
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errText)));
     }
   }
 

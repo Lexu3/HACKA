@@ -71,9 +71,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(
             width: 100,
             height: 100,
-            decoration: BoxDecoration(
+              decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.blueAccent.withOpacity(0.2),
+              color: Colors.blueAccent.withAlpha((0.2 * 255).round()),
             ),
             child: const Icon(Icons.person, size: 50, color: Colors.blueAccent),
           ),
@@ -204,7 +204,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               width: 60,
                                               height: 60,
                                               decoration: BoxDecoration(
-                                                color: Colors.blueAccent.withOpacity(0.2),
+                                                color: Colors.blueAccent.withAlpha((0.2 * 255).round()),
                                                 borderRadius: BorderRadius.circular(8),
                                               ),
                                               child: const Icon(Icons.school, color: Colors.blueAccent),

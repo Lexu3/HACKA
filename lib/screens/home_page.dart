@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-// Chat is available as a floating panel; remove inline chat from home layout.
+// (inline chat removed) Floating chat panel is used instead.
 import 'main_screen.dart';
 import 'profile_screen.dart';
 

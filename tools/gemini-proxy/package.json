@@ -1,0 +1,14 @@
+{
+  "name": "gemini-proxy",
+  "version": "0.1.0",
+  "description": "Simple proxy to forward prompts to Gemini/Vertex AI with server-side key and optional moderation.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "axios": "^1.4.0",
+    "express": "^4.18.2",
+    "body-parser": "^1.20.2"
+  }
+}
